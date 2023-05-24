@@ -45,6 +45,8 @@ get_mcmc_median_runtimes <- function(input_model = NULL, input_data = NULL,
   #    - a vector of microbenchmark median evaluation times.
   #    - a vector of benchmark start times.
   #    - a vector of benchmark end times.
+  #    - the fastest number of cores to use.
+  #    - the fastest number of chains to use.
   #
   #
   # Example:
@@ -54,8 +56,8 @@ get_mcmc_median_runtimes <- function(input_model = NULL, input_data = NULL,
   # model_simple <- "data {real y_mean;}
   #   parameters {real y;}
   #   model {y ~ normal(y_mean, 1);}"
-  # stan_model_simple <- rstan::stan_model(model_code = model_simple,
-  #                                        save_dso = FALSE)
+  # stan_model_simple <- rstan::stan_model(
+  #   model_code = model_simple, save_dso = FALSE)
   # get_mcmc_median_runtimes(
   #   input_model = stan_model_simple,
   #   input_data = list(y_mean = 0),
@@ -102,12 +104,20 @@ get_mcmc_median_runtimes <- function(input_model = NULL, input_data = NULL,
   # N.B. The 'rstan_options(auto_write = TRUE)' call during setup only prevents
   # recompilation of unchanged AND un-garbage collected stan models.
 
-  # Perform benchmarking over different numbers of cores and chains.
-  benchmark_results <- rep(NA, sum(seq(1:max_chains)) - sum(seq(1:{min_chains - 1})))
+  # Allocate space for benchmarking results.
+  benchmark_results <- vector()
+  for (i in min_cores:active_cores) {
+    for (j in min_chains:max_chains) {
+      if (i <= j) {
+        benchmark_results <- append(benchmark_results, NA)
+      }
+    }
+  }
   start_times <- benchmark_results
   end_times <- benchmark_results
-  counter <- 0
 
+  # Perform benchmarking over different numbers of cores and chains.
+  counter <- 0
   for (i in min_cores:active_cores) {
     options(mc.cores = i)
 
@@ -154,18 +164,32 @@ get_mcmc_median_runtimes <- function(input_model = NULL, input_data = NULL,
 
   # Print results in units of seconds.
   counter <- 0
+  cores_fastest <- 0
+  chains_fastest <- 0
+  benchmark_min <- Inf
   for (i in min_cores:active_cores) {
     for (j in min_chains:max_chains) {
-      counter <- counter + 1
-      cat("# cores = ", i,
-          ", # chains = ", j,
-          ", median runtime = ", benchmark_results[[counter]],
-          " seconds. (# evaluations = ", num_evals, ")\n", sep = "")
+      if (i <= j) {
+        counter <- counter + 1
+        cat("# cores = ", i,
+            ", # chains = ", j,
+            ", median runtime = ", benchmark_results[[counter]],
+            " seconds. (# evaluations = ", num_evals, ")\n", sep = "")
+
+        # Check for fastest combination of cores and chains.
+        if (benchmark_results[[counter]] < benchmark_min) {
+          benchmark_min <- benchmark_results[[counter]]
+          cores_fastest <- i
+          chains_fastest <- j
+        }
+      }
     }
   }
 
   # Return the median run times.
-  list("medians" = benchmark_results, "start" = start_times, "end" = end_times)
+  list("medians" = benchmark_results,
+       "start" = start_times, "end" = end_times,
+       "cores_fastest" = cores_fastest, "chains_fastest" = chains_fastest)
 }
 
 
@@ -203,7 +227,8 @@ get_mcmc_optimum_config <- function(stan_model_input, stan_data_input) {
   # checks activated by check(). CRAN builds in this restriction.
   cran_check <- Sys.getenv("_R_CHECK_LIMIT_CORES_", "")
   if (nzchar(cran_check) && cran_check == "TRUE") {
-    num_physical_cores <- 2
+    # Allow for single core machines.
+    num_physical_cores <- min(2, parallel::detectCores(logical = FALSE))
   } else {
     num_physical_cores <- parallel::detectCores(logical = FALSE)
   }
@@ -224,11 +249,6 @@ get_mcmc_optimum_config <- function(stan_model_input, stan_data_input) {
   )
 
   # Process benchmarks.
-  list_config <- list(optimum_chains = 0, optimum_cores = 0)
-  chain_range_successor_physical <- num_physical_cores - 3
-  scaled_index <- which.min(benchmarks$medians) / chain_range_successor_physical
-  list_config$optimum_cores <- ceiling(scaled_index)
-  list_config$optimum_chains <- which.min(benchmarks$medians) - {list_config$optimum_cores - 1} * chain_range_successor_physical + 3
-
-  list_config
+  list(optimum_chains = benchmarks$chains_fastest,
+       optimum_cores = benchmarks$cores_fastest)
 }
