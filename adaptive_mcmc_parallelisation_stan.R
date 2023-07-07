@@ -117,7 +117,12 @@ get_mcmc_median_runtimes <- function(input_model = NULL, input_data = NULL,
   end_times <- benchmark_results
 
   # Perform benchmarking over different numbers of cores and chains.
+  #
+  benchmark_min <- Inf
+  chains_fastest <- 0
+  cores_fastest <- 0
   counter <- 0
+  #
   for (i in min_cores:active_cores) {
     options(mc.cores = i)
 
@@ -125,10 +130,10 @@ get_mcmc_median_runtimes <- function(input_model = NULL, input_data = NULL,
       # Set default benchmarking time unit to seconds.
       # Remember, microbenchmark does (needed) warmup iterations.
 
-      counter <- counter + 1
-
       # Only evaluate when num cores <= num chains.
       if (i <= j) {
+
+        counter <- counter + 1
 
         # Give a progress indication.
         cat("get_mcmc_median_runtimes progress: evaluating cores = ", i,
@@ -158,23 +163,6 @@ get_mcmc_median_runtimes <- function(input_model = NULL, input_data = NULL,
         }
         end_times[counter] <- Sys.time()
 
-      }
-    }
-  }
-
-  # Print results in units of seconds.
-  counter <- 0
-  cores_fastest <- 0
-  chains_fastest <- 0
-  benchmark_min <- Inf
-  for (i in min_cores:active_cores) {
-    for (j in min_chains:max_chains) {
-      if (i <= j) {
-        counter <- counter + 1
-        cat("# cores = ", i,
-            ", # chains = ", j,
-            ", median runtime = ", benchmark_results[[counter]],
-            " seconds. (# evaluations = ", num_evals, ")\n", sep = "")
 
         # Check for fastest combination of cores and chains.
         if (benchmark_results[[counter]] < benchmark_min) {
@@ -182,6 +170,11 @@ get_mcmc_median_runtimes <- function(input_model = NULL, input_data = NULL,
           cores_fastest <- i
           chains_fastest <- j
         }
+        # Print results in units of seconds.
+        cat("# cores = ", i, ", # chains = ", j,
+            ", median runtime = ", benchmark_results[[counter]],
+            " seconds. (# evaluations = ", num_evals, ")\n", sep = "")
+
       }
     }
   }
