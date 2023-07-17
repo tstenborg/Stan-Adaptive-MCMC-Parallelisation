@@ -5,4 +5,4 @@ Dynamic determination of optimum chains and cores for MCMC in R / Stan.
 
 These files may be used in conjunction with e.g., RStudio.
 
-Reference: Stenborg, TN, 2023, "Adaptive MCMC Parallelisation in Stan". [Submitted].
+Reference: Stenborg, TN, 2023, "Adaptive MCMC Parallelisation in Stan", in 25th International Congress on Modelling and Simulation. Modelling and Simulation Society of Australia and New Zealand, 2023. [In press].
