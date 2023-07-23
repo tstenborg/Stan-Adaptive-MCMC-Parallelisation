@@ -226,7 +226,7 @@ get_mcmc_optimum_config <- function(stan_model_input, stan_data_input) {
     num_physical_cores <- parallel::detectCores(logical = FALSE)
   }
 
-  benchmarks <- hapotools::get_mcmc_median_runtimes(
+  benchmarks <- get_mcmc_median_runtimes(
     input_model = stan_model_input,
     input_data = stan_data_input,
     min_cores = 1,
