@@ -1,4 +1,5 @@
 # Stan-Adaptive-Parallelisation
+
 Dynamic determination of optimum chains and cores for MCMC in R / Stan.
 
 - adaptive_mcmc_parallelisation_stan.R &nbsp;&nbsp; Two functions implementing the adaptive parallelisation.<br />
